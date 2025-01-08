@@ -2,7 +2,7 @@
 
 # **Roomify**
 
-Bring modern interior design to life in your environment with **Roomify**!
+Experience modern interior design like never before with **Roomify**, right in your own space!
 
 ---
 
@@ -12,6 +12,6 @@ Bring modern interior design to life in your environment with **Roomify**!
 
 🏡 Open the app and explore a wide range of modern interior room models.
 
-🎨 Place, adjust, and explore room designs in your real-world space with ease.
+🎨 Place and explore room designs in your real-world space with ease.
 
 Experience the future of interior design and make your dream interiors come alive!
