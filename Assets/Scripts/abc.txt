@@ -1,0 +1,167 @@
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.XR.ARFoundation;
+using UnityEngine.XR.ARSubsystems;
+using UnityEngine.UI; // Add this to handle UI components
+
+public class PlaceModelOnGround : MonoBehaviour
+{
+    public GameObject[] modelPrefabs; // Array of model prefabs
+    private GameObject placedModel;   // The currently placed model
+    private int currentModelIndex = 0; // Track the currently selected model index
+    private ARRaycastManager arRaycastManager; // AR Raycast Manager for detecting surfaces
+    private List<ARRaycastHit> hits = new List<ARRaycastHit>(); // List to store raycast results
+    private List<GameObject> placedModels = new List<GameObject>(); // List to track placed models
+
+    // Joystick references
+    public FixedJoystick joystick;
+
+    [Header("Rotation Settings")]
+    public float rotationSpeed = 50f; // Speed of rotation (adjustable in Inspector)
+
+    [Header("Scale Settings")]
+    public float[] modelScaleFactors; // Array to store scale factors for each model
+    public float scaleSpeed = 0.1f; // Speed at which the scale changes (adjustable in Inspector)
+    private Vector3 initialScale; // Store the initial scale of the model
+    private Vector3 targetScale; // Target scale for the model
+
+    private Vector3 velocity = Vector3.zero; // Velocity used for smooth scaling
+    private float smoothTime = 0.2f; // Smoothing time for scale changes
+
+    [Header("Model Rotation Adjustments")]
+    public Vector3[] modelRotations; // Rotation values for each model in the array (can be adjusted in Inspector)
+
+    public int[] rotationAxes; // Array specifying the rotation axis for each model
+
+    [Header("Audio Settings")]
+    public AudioSource audioSource; // Assign the AudioSource component in the Inspector
+    public Button playButton; // Assign the play button in the Inspector
+    public Button pauseButton; // Assign the pause button in the Inspector
+
+    void Start()
+    {
+        arRaycastManager = FindObjectOfType<ARRaycastManager>();
+
+        // Setup button click listeners
+        if (playButton != null)
+        {
+            playButton.onClick.AddListener(PlayAudio);
+        }
+        if (pauseButton != null)
+        {
+            pauseButton.onClick.AddListener(PauseAudio);
+        }
+
+        // Ensure the correct initial button states
+        UpdateButtonStates();
+    }
+
+    void Update()
+    {
+        HandlePlacement();
+        HandleJoystickControl();
+    }
+
+    private void HandlePlacement()
+    {
+        if (Input.touchCount > 0 && placedModel == null) // Allow placement only if no model exists
+        {
+            Touch touch = Input.GetTouch(0);
+
+            if (touch.phase == TouchPhase.Began)
+            {
+                if (arRaycastManager.Raycast(touch.position, hits, TrackableType.PlaneWithinPolygon))
+                {
+                    Pose hitPose = hits[0].pose; // Get the pose of the hit
+                    PlaceModel(hitPose.position, hitPose.rotation);
+                }
+            }
+        }
+    }
+
+    private void HandleJoystickControl()
+    {
+        if (placedModel == null || joystick == null)
+            return;
+
+        RotateModelWithJoystick();
+
+        float vertical = joystick.Vertical;
+        if (Mathf.Abs(vertical) > 0.1f) // Threshold to avoid small unintentional movements
+        {
+            float scaleFactor = modelScaleFactors[currentModelIndex];
+            targetScale = initialScale * (1 + scaleFactor * vertical * scaleSpeed);
+
+            placedModel.transform.localScale = Vector3.SmoothDamp(placedModel.transform.localScale, targetScale, ref velocity, smoothTime);
+        }
+    }
+
+    private void RotateModelWithJoystick()
+    {
+        if (placedModel == null) return;
+
+        int rotationAxis = rotationAxes[currentModelIndex];
+        float joystickInput = joystick.Horizontal;
+
+        if (Mathf.Abs(joystickInput) > 0.1f)
+        {
+            if (rotationAxis == 0) // X-axis
+            {
+                placedModel.transform.Rotate(Vector3.right, joystickInput * rotationSpeed * Time.deltaTime);
+            }
+            else if (rotationAxis == 1) // Y-axis
+            {
+                placedModel.transform.Rotate(Vector3.up, joystickInput * rotationSpeed * Time.deltaTime);
+            }
+            else if (rotationAxis == 2) // Z-axis
+            {
+                placedModel.transform.Rotate(Vector3.forward, joystickInput * rotationSpeed * Time.deltaTime);
+            }
+        }
+    }
+
+    private void PlaceModel(Vector3 position, Quaternion rotation)
+    {
+        if (placedModel != null)
+        {
+            Destroy(placedModel);
+        }
+
+        Vector3 modelRotation = modelRotations[currentModelIndex];
+        placedModel = Instantiate(modelPrefabs[currentModelIndex], position, Quaternion.Euler(modelRotation));
+        placedModels.Add(placedModel);
+
+        initialScale = placedModel.transform.localScale;
+        targetScale = initialScale; // Set initial target scale to the current model scale
+    }
+
+    public void PlayAudio()
+    {
+        if (audioSource != null && !audioSource.isPlaying)
+        {
+            audioSource.Play();
+            UpdateButtonStates();
+        }
+    }
+
+    public void PauseAudio()
+    {
+        if (audioSource != null && audioSource.isPlaying)
+        {
+            audioSource.Pause();
+            UpdateButtonStates();
+        }
+    }
+
+    private void UpdateButtonStates()
+    {
+        if (audioSource != null)
+        {
+            bool isPlaying = audioSource.isPlaying;
+            playButton.gameObject.SetActive(!isPlaying);
+            pauseButton.gameObject.SetActive(isPlaying);
+        }
+    }
+}
+
+
